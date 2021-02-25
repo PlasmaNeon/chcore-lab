@@ -76,10 +76,14 @@ static struct page *get_buddy_chunk(struct phys_mem_pool *pool,
 	return virt_to_page(pool, (void *)buddy_chunk_addr);
 }
 
+
+/*
+	Helper function for debugging.
+*/
 void __printPageInfo(struct page* page){
-	printk("page addr= %ld\n", (u64)page);
+	//printk("page addr= %ld\n", (u64)page);
 	printk("page->order = %d\n", page->order);
-	printk("page->allocated = %d\n", page->allocated);	
+	//printk("page->allocated = %d\n", page->allocated);	
 }
 
 /*
@@ -97,7 +101,6 @@ static struct page *split_page(struct phys_mem_pool *pool, u64 order,
 			       struct page *page)
 {
 	// <lab2>
-	if (order < 0) return NULL;
 	if (page->order == order || page->order == 0) {
 		return page;
 	}
@@ -108,10 +111,9 @@ static struct page *split_page(struct phys_mem_pool *pool, u64 order,
 	
 	u64 page_addr = (u64)page_to_virt(pool, page);
 	struct page* sub_page0 = virt_to_page(pool, (void*) page_addr);
-
 	sub_page0->order = page_order - 1;
+	// sub_page0 will be used for final allocation so no need to mark allocated here.
 	
-
 	struct page* sub_page1 = get_buddy_chunk(pool, sub_page0);
 	sub_page1->order = page_order - 1;
 	sub_page1->allocated = 0;
@@ -142,7 +144,7 @@ struct page *buddy_get_pages(struct phys_mem_pool *pool, u64 order)
 		if (pool->free_lists[available_od].nr_free != 0)
 			// Found an available corresponding free_list
 			break;
-	if (available_od == BUDDY_MAX_ORDER) return NULL;
+	
 	page = split_page(pool, order, (struct page*)pool->free_lists[available_od].free_list.next); 
 	// Choose a page
 	page->allocated = 1;
@@ -167,19 +169,19 @@ static struct page *merge_page(struct phys_mem_pool *pool, struct page *page)
 	// <lab2>
 	#define BUDDY_PAGE_SIZE_ORDER (12)
 	int cur_order = page->order;
-	if (page->order + 1 >= BUDDY_MAX_ORDER || page->allocated == 1)
+	if (page->order + 1 >= BUDDY_MAX_ORDER)
 		return page;
 	struct page* buddy = get_buddy_chunk(pool, page);
-	if (buddy->allocated == 1) return page;
 
+	// Merge can only happen if page and its buddy have the same order, 
+	//which means its buddy has not been splitted.
+	if (page->order != buddy->order || buddy->allocated == 1) return page;
+	
 	struct page* merged = virt_to_page(pool, (void*)(MIN((u64)page_to_virt(pool, page), (u64)page_to_virt(pool, buddy))));
-	//list_del(&page->node);
 	list_del(&buddy->node);
 	pool->free_lists[cur_order].nr_free--;
 	
 	merged->allocated = 0;
-	// list_add(&merged->node, &pool->free_lists[cur_order + 1].free_list);
-	// pool->free_lists[cur_order + 1].nr_free++;
 	merged->order = cur_order + 1;
 	
 	return merge_page(pool, merged);
@@ -196,15 +198,9 @@ static struct page *merge_page(struct phys_mem_pool *pool, struct page *page)
 void buddy_free_pages(struct phys_mem_pool *pool, struct page *page)
 {
 	// <lab2>
-	//printk("Entering");
-	if (page->allocated == 0) return;
-	
 	page->allocated = 0;
-	// list_add(&page->node, &pool->free_lists[page->order].free_list);
-	// pool->free_lists[page->order].nr_free++;
-	//printk("here111");
-	struct page* merged = merge_page(pool, page);
-	//printk("here");
+	struct page* merged;
+	merged = merge_page(pool, page);
 	list_add(&merged->node, &pool->free_lists[merged->order].free_list);
 	pool->free_lists[merged->order].nr_free++;
 	return;
