@@ -14,3 +14,7 @@ build
 *.out
 *.pyc
 chcore.out
+
+
+chcore-git.md
+*.pdf
