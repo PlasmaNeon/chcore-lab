@@ -4,7 +4,6 @@
 
 #include "buddy.h"
 
-#include <minunit.h>
 /*
  * The layout of a phys_mem_pool:
  * | page_metadata are (an array of struct page) | alignment pad | usable memory |

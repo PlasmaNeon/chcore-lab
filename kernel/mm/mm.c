@@ -17,6 +17,8 @@
 #include "buddy.h"
 #include "slab.h"
 
+#include "page_table.h"
+
 extern unsigned long *img_end;
 
 #define PHYSICAL_MEM_START (24*1024*1024)	//24M
@@ -51,7 +53,19 @@ unsigned long get_ttbr1(void)
 void map_kernel_space(vaddr_t va, paddr_t pa, size_t len)
 {
 	// <lab2>
+	#define SIZE_2M		(1 << 21)   
+	
+	vaddr_t pgd_addr = get_ttbr1();
+	ptp_t* pgd = (ptp_t*) pgd_addr;
 
+	for (int i = 0; i < len; i += SIZE_2M){
+		pgd->ent[i].l2_block.UXN = 1;
+		pgd->ent[i].l2_block.AF = 1;
+		pgd->ent[i].l2_block.SH = 3;
+		pgd->ent[i].l2_block.attr_index = 4;
+		
+	} 
+	
 	// </lab2>
 }
 
