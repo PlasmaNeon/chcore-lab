@@ -30,3 +30,5 @@ This is the repository of ChCore labs in SE315, 2020 Spring.
   - type `Ctrl+a x` to quit QEMU
   - type `Ctrl+d` to quit GDB
   
+## Notes
+  - [ ] TODO: lab2 Challenge.
