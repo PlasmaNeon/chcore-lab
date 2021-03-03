@@ -163,6 +163,32 @@ int query_in_pgtbl(vaddr_t * pgtbl, vaddr_t va, paddr_t * pa, pte_t ** entry)
 {
 	// <lab2>
 
+	ptp_t* next_ptp;
+	ptp_t* cur_ptp = (ptp_t *)pgtbl;
+	int ret;
+	
+	for (int level = 0; level <= 3; ++level){
+		ret = get_next_ptp(cur_ptp, level, va, &next_ptp, entry, 0);
+		if (ret == BLOCK_PTP){
+			switch (level){
+			case 1:
+				*pa = ((*entry)->l1_block.pfn <<  L1_INDEX_SHIFT) + GET_VA_OFFSET_L1(va);
+				break;
+			case 2:
+				*pa = ((*entry)->l2_block.pfn << L2_INDEX_SHIFT) + GET_VA_OFFSET_L2(va);
+				break;
+			case 3:
+				*pa = ((*entry)->l3_page.pfn << L3_INDEX_SHIFT) + GET_VA_OFFSET_L3(va);
+				break;
+			}
+			return 0;
+		} 
+		else if (ret == -ENOMAPPING) return -14;
+		else cur_ptp = next_ptp;
+		
+	}
+	*pa = ((*entry)->l3_page.pfn << L3_INDEX_SHIFT) + GET_VA_OFFSET_L3(va);
+	//printk("*pa = %lx\n", *pa); 
 	// </lab2>
 	return 0;
 }
@@ -186,7 +212,24 @@ int map_range_in_pgtbl(vaddr_t * pgtbl, vaddr_t va, paddr_t pa,
 		       size_t len, vmr_prop_t flags)
 {
 	// <lab2>
-
+	ptp_t* cur_ptp = (ptp_t*) pgtbl;
+	ptp_t* next_ptp;
+	pte_t* entry;
+	//int ret = 0;
+	// TODO: Maybe should consider Big Page.
+	for (int level = 0; level <= 3; ++level){
+		get_next_ptp(cur_ptp, level, va, &next_ptp, &entry, 1);
+		
+		cur_ptp = next_ptp;
+		if (level == 3){
+			set_pte_flags(entry, VMR_WRITE | VMR_EXEC, USER_PTE);
+			entry->l3_page.is_valid = 1;
+			entry->l3_page.is_page = 1;
+			entry->l3_page.pfn = (phys_to_virt(pa) >> PAGE_SHIFT);
+		} 
+	}
+	
+	flush_tlb();
 	// </lab2>
 	return 0;
 }
@@ -207,7 +250,22 @@ int map_range_in_pgtbl(vaddr_t * pgtbl, vaddr_t va, paddr_t pa,
 int unmap_range_in_pgtbl(vaddr_t * pgtbl, vaddr_t va, size_t len)
 {
 	// <lab2>
+	ptp_t* cur_ptp = (ptp_t*) pgtbl;
+	ptp_t* next_ptp;
+	pte_t* entry;
+	int ret;
+	for (int level = 0; level <= 3; ++level){
+		ret = get_next_ptp(cur_ptp, level, va, &next_ptp, &entry, 0);
+		if (ret == -ENOMAPPING) return 0;
+		if (ret == BLOCK_PTP) break;
+		cur_ptp = next_ptp;
+	}
 
+	for (size_t i = 0; i < len; i += PAGE_SIZE){
+		entry->pte = 0; //Clear pte
+	}
+
+	flush_tlb();
 	// </lab2>
 	return 0;
 }

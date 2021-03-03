@@ -38,6 +38,17 @@ void stack_test(long x)
 	kinfo("leaving stack_test %d\n", x);
 }
 
+// __attribute__ ((optimize("O1")))
+// void stack_test2(long x, long a, long b, long c, long d, long e, long f)
+// {
+// 	kinfo("entering stack_test %d %d %d %d %d %d %d\n", x, a, b, c, d, e, f);
+// 	if (x > 0)
+// 		stack_test2(x - 1, a, b, c, d, e, f);
+// 	else
+// 		stack_backtrace();
+// 	kinfo("leaving stack_test %d %d %d %d %d %d %d\n", x, a, b, c, d, e, f);
+// }
+
 void main(void *addr)
 {
 	/* Init uart */
@@ -46,8 +57,9 @@ void main(void *addr)
 
 	kinfo("Address of main() is 0x%lx\n", main);
 	kinfo("123456 decimal is 0%o octal\n", 123456);
-
+	
 	stack_test(5);
+	//stack_test2(5, 1, 2, 3, 4, 5, 6);
 
 	mm_init();
 	kinfo("mm init finished\n");

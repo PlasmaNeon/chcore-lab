@@ -31,5 +31,20 @@ int stack_backtrace()
 
 	// Your code here.
 
+	u64 fp = read_fp(); // val 2040
+	
+	u64* addr = (u64*) fp; // addr 2040, *addr 2060
+	while(*addr){
+		printk(" LR %lx FP %lx Args %lx %lx %lx %lx %lx \n", 
+			*((u64*)*addr + 1),
+			*addr, 
+			*(addr + 2),
+			*(addr + 3),
+			*(addr + 4),
+			*(addr + 5),
+			*(addr + 6)
+			);
+		addr = (u64*)*addr;
+	}
 	return 0;
 }

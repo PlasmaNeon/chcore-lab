@@ -51,10 +51,13 @@
 #define L2_INDEX_SHIFT			    ((1 * PAGE_ORDER) + PAGE_SHIFT)
 #define L3_INDEX_SHIFT			    ((0 * PAGE_ORDER) + PAGE_SHIFT)
 
+
 #define GET_L0_INDEX(addr) ((addr >> L0_INDEX_SHIFT) & PTP_INDEX_MASK)
 #define GET_L1_INDEX(addr) ((addr >> L1_INDEX_SHIFT) & PTP_INDEX_MASK)
 #define GET_L2_INDEX(addr) ((addr >> L2_INDEX_SHIFT) & PTP_INDEX_MASK)
 #define GET_L3_INDEX(addr) ((addr >> L3_INDEX_SHIFT) & PTP_INDEX_MASK)
+
+#define GET_L_INDEX(addr, level) ((addr >> ((3 - level) * PAGE_ORDER) + PAGE_SHIFT)) & PTP_INDEX_MASK)
 
 #define PTP_ENTRIES               (1UL << PAGE_ORDER)
 /* Number of 4KB-pages that an Lx-block describes */
@@ -126,3 +129,5 @@ typedef union {
 typedef struct {
 	pte_t ent[PTP_ENTRIES];
 } ptp_t;
+
+
