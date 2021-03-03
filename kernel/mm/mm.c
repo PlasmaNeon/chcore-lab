@@ -147,8 +147,6 @@ void mm_init(void)
 	init_slab();
 
 	map_kernel_space(KBASE + (128UL << 21), 128UL << 21, 128UL << 21);
-	printk("Here!\n");
 	//check whether kernel space [KABSE + 256 : KBASE + 512] is mapped 
 	kernel_space_check();
-	printk("Here\n");
 }
