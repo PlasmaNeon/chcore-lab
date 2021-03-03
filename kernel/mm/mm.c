@@ -17,8 +17,6 @@
 #include "buddy.h"
 #include "slab.h"
 
-#include "page_table.h"
-
 extern unsigned long *img_end;
 
 #define PHYSICAL_MEM_START (24*1024*1024)	//24M
@@ -53,18 +51,56 @@ unsigned long get_ttbr1(void)
 void map_kernel_space(vaddr_t va, paddr_t pa, size_t len)
 {
 	// <lab2>
-	#define SIZE_2M		(1 << 21)   
-	
-	vaddr_t pgd_addr = get_ttbr1();
-	ptp_t* pgd = (ptp_t*) pgd_addr;
 
-	for (int i = 0; i < len; i += SIZE_2M){
-		pgd->ent[i].l2_block.UXN = 1;
-		pgd->ent[i].l2_block.AF = 1;
-		pgd->ent[i].l2_block.SH = 3;
-		pgd->ent[i].l2_block.attr_index = 4;
-		
-	} 
+	//From mmu.c
+	#define IS_VALID (1UL << 0)
+	#define UXN	       (0x1UL << 54)
+	#define ACCESSED       (0x1UL << 10)
+	#define INNER_SHARABLE (0x3UL << 8)
+	#define NORMAL_MEMORY  (0x4UL << 2)
+	
+	// From page_table.h
+	#define PAGE_SHIFT                          (12)
+	#define PAGE_MASK                           (PAGE_SIZE - 1)
+	#define PAGE_ORDER                          (9)
+	#define PTP_INDEX_MASK			    ((1 << (PAGE_ORDER)) - 1)
+	#define L0_INDEX_SHIFT			    ((3 * PAGE_ORDER) + PAGE_SHIFT)
+	#define L1_INDEX_SHIFT			    ((2 * PAGE_ORDER) + PAGE_SHIFT)
+	#define L2_INDEX_SHIFT			    ((1 * PAGE_ORDER) + PAGE_SHIFT)
+	#define L3_INDEX_SHIFT			    ((0 * PAGE_ORDER) + PAGE_SHIFT)
+
+	#define GET_L0_INDEX(addr) ((addr >> L0_INDEX_SHIFT) & PTP_INDEX_MASK)
+	#define GET_L1_INDEX(addr) ((addr >> L1_INDEX_SHIFT) & PTP_INDEX_MASK)
+	#define GET_L2_INDEX(addr) ((addr >> L2_INDEX_SHIFT) & PTP_INDEX_MASK)
+	#define GET_L3_INDEX(addr) ((addr >> L3_INDEX_SHIFT) & PTP_INDEX_MASK)
+	
+	// My macros
+	#define SIZE_2M				(1 << 21)
+	#define GET_PADDR_IN_PTE(entry) \
+	( (((u64)entry >> PAGE_SHIFT) & ((1UL << 36) - 1)) << PAGE_SHIFT)
+	// Pick table.next_table_addr (check page_table.h for definition), 
+	// table.next_table_addr is 36bits, representing physical page number,  
+	// then restore it to 48bits physical address.
+	#define GET_NEXT_TABLE_VADDR(entry) \
+	phys_to_virt((u64)GET_PADDR_IN_PTE(entry)) // get virtual address.
+	
+	vaddr_t pgd_addr = phys_to_virt(get_ttbr1()); //L0 page table base address.
+	
+	vaddr_t* pgd = (vaddr_t*)pgd_addr;
+	int entry_idx = GET_L0_INDEX(va); // L0 page table entry
+	pgd =(vaddr_t*) GET_NEXT_TABLE_VADDR(pgd[entry_idx]); // L1 page table
+	entry_idx = GET_L1_INDEX(va); // L1 page table entry
+	pgd = (vaddr_t*) GET_NEXT_TABLE_VADDR(pgd[entry_idx]); //L2 page table
+
+	for (u32 i = GET_L2_INDEX(va); i < GET_L2_INDEX(va) + len / SIZE_2M; i++){
+		//Same operations in mmu.c
+		pgd[i] = (pa + i * SIZE_2M)
+		| UXN	/* Unprivileged execute never */
+		| ACCESSED	/* Set access flag */
+		| INNER_SHARABLE	/* Sharebility */
+		| NORMAL_MEMORY	/* Normal memory */
+		| IS_VALID;
+	}
 	
 	// </lab2>
 }
@@ -111,6 +147,8 @@ void mm_init(void)
 	init_slab();
 
 	map_kernel_space(KBASE + (128UL << 21), 128UL << 21, 128UL << 21);
+	printk("Here!\n");
 	//check whether kernel space [KABSE + 256 : KBASE + 512] is mapped 
 	kernel_space_check();
+	printk("Here\n");
 }
